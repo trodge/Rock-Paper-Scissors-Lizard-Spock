@@ -4,19 +4,29 @@
 $(function () {
     // Your web app's Firebase configuration
     var firebaseConfig = {
-        apiKey: "AIzaSyD2sMCdPdMSipTpb2cl81XASLmAG7cfckM",
-        authDomain: "rock-paper-scissors-e69d4.firebaseapp.com",
-        databaseURL: "https://rock-paper-scissors-e69d4.firebaseio.com",
-        projectId: "rock-paper-scissors-e69d4",
-        storageBucket: "",
-        messagingSenderId: "529053111667",
-        appId: "1:529053111667:web:14934373b2cbe67e"
+        apiKey: 'AIzaSyD2sMCdPdMSipTpb2cl81XASLmAG7cfckM',
+        authDomain: 'rock-paper-scissors-e69d4.firebaseapp.com',
+        databaseURL: 'https://rock-paper-scissors-e69d4.firebaseio.com',
+        projectId: 'rock-paper-scissors-e69d4',
+        storageBucket: '',
+        messagingSenderId: '529053111667',
+        appId: '1:529053111667:web:14934373b2cbe67e'
     };
     // Initialize Firebase.
     firebase.initializeApp(firebaseConfig);
     var database = firebase.database();
-    var ref = database.ref(); // reference to root of database
-    ref.once('value').then(function (snapshot) {
+    var chatRef = database.ref('chat');
+
+    chatRef.on('value', function(snapshot) {
+        messages = snapshot.val();
+        var chatBox = $('#chat');
+        chatBox.empty();
+        for (item in messages)
+            chatBox.append(messages[item] + '<br>');
+    });
+
+    var playersRef = database.ref('players'); // reference to players in database
+    playersRef.once('value').then(function (snapshot) {
         // Load initial data from database.
         var playerNumber, playerCount = 0;
         var players = snapshot.val();
@@ -24,7 +34,7 @@ $(function () {
         for (other in players) {
             player = players[other]
             if (player.status === 'disconnected') {
-                if (!ourKey && player.name.substring(0, 7) === "Player ") {
+                if (!ourKey && player.name.substring(0, 7) === 'Player ') {
                     // Take this disconnected player's name.
                     ourKey = other;
                     ourName = player.name;
@@ -38,12 +48,18 @@ $(function () {
         }
         // Increase player count to count this player.
         playerNumber = ++playerCount;
-        var ourName = "Player " + String(playerNumber);
-        $("#player-name").val(ourName);
+        var ourName = 'Player ' + String(playerNumber);
+        $('#player-name').val(ourName);
+        $('#chat-input').keydown(function(event) {
+            if (event.key === 'Enter') {
+                chatRef.push(ourName + ': ' + $(this).val());
+                $(this).val('');
+            }
+        });
         if (!ourKey)
             // Add a new player to database.
-            ourKey = ref.push({ name: ourName }).key;
-        var ourRef = database.ref(ourKey);
+            ourKey = playersRef.push({ name: ourName }).key;
+        var ourRef = database.ref('players/' + ourKey);
         ourRef.update({
             status: 'seeking',
             opponent: matchKey ? matchKey : null
@@ -76,7 +92,7 @@ $(function () {
                     .attr({ 'class': 'btn btn-primary', 'choice-id': i })
                     .css({ 'font-size': 42, 'width': 90, 'height': 90, 'margin': '5px auto', 'display': 'block' })
                     .html($('<i>').attr('class', 'fas fa-hand-' + choices[i]))
-                    .on("click", function () {
+                    .on('click', function () {
                         ourChoice = $(this).attr('choice-id');
                         ourRef.update({ status: 'ready' });
                         if (matchReady)
@@ -88,7 +104,7 @@ $(function () {
             // Found a match, run the game
             matchRef.onDisconnect().update({ opponent: null });
             // Listen for match to disconect or choose.
-            matchRef.on("value", function (snapshot) {
+            matchRef.on('value', function (snapshot) {
                 var match = snapshot.val();
                 switch (match.status) {
                     case 'disconnected':
@@ -115,7 +131,7 @@ $(function () {
 
         function makeMatch() {
             // We have an unmatched player to match with.
-            matchRef = database.ref(matchKey);
+            matchRef = database.ref('players/' + matchKey);
             // Set our opponent and status in database.
             ourRef.update({ status: 'matched', opponent: matchKey })
             // Set our opponent's opponent and status in database.
@@ -129,7 +145,7 @@ $(function () {
 
         function awaitMatch() {
             // Listen for match to connect.
-            ourRef.on("value", function (snapshot) {
+            ourRef.on('value', function (snapshot) {
                 var us = snapshot.val();
                 if (us.status === 'matched') {
                     matchKey = us.opponent;
