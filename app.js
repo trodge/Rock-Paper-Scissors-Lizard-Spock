@@ -74,12 +74,19 @@ $(function () {
         function completeGame() {
             // Function to call when both players have chosen.
             ourRef.update({ choice: ourChoice });
+            matchRef.off();
             // Listen for opponent's choice on database
-            matchRef.once('value').then(function (snapshot) {
-                matchChoice = Number(snapshot.val().choice);
-                var difference = matchChoice - ourChoice;
-                $('#result').html('You chose ' + choices[ourChoice] + ' and ' + matchName + ' chose ' + choices[matchChoice] + '.<br>' +
-                    (difference ? difference % 2 ^ difference > 0 ? 'You lose!' : 'You win!' : 'Draw!'));
+            matchRef.on('value', function (snapshot) {
+                var match = snapshot.val();
+                console.log(match);
+                if (match.choice) {
+                    matchChoice = Number(match.choice);
+                    var difference = matchChoice - ourChoice;
+                    $('#result').append('You chose ' + choices[ourChoice] + ' and ' + matchName + ' chose ' + choices[matchChoice] + '.<br>' +
+                        (difference ? difference % 2 ^ difference > 0 ? 'You lose!' : 'You win!' : 'Draw!') + '<br>');
+                    matchRef.update({ choice: null });
+                    matchRef.off();
+                }
             });
         }
 
